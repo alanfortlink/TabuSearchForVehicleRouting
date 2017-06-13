@@ -1,3 +1,5 @@
+import java.util.*
+
 /**
  * Created by alanfortlink on 6/11/17.
  */
@@ -6,19 +8,23 @@ fun nextInt(): Int{
     return (Math.random() * 100000000000).toInt();
 }
 
-class TS(val instance: Instance, val timeLimit: Int, val numIteration: Int){
+class TS(val instance: Instance, val timeLimit: Int, val numIteration: Int, val frequencyOfIntensification: Int, val tenureSize: Int, val target: Int){
 
     var evaluator = Evaluator();
     var tabuList = mutableListOf<Customer>()
-    var tenureSize = 0
 
     fun solve() : Solution{
         evaluator.calcDistances(instance.customers)
 
         var solution = getBaseSolution()
 
+        var timeStart = System.currentTimeMillis()
+        var timeSpent = System.currentTimeMillis() - timeStart
+
+        var k = 0
+
         for(i in 1..numIteration){
-            println("Iteration ${i}")
+//            println("Iteration ${i}")
 
             var i = 0
             while(i < solution.vehicles.size){
@@ -33,10 +39,32 @@ class TS(val instance: Instance, val timeLimit: Int, val numIteration: Int){
 
             var bestNeighbor = getBestNeighbor(solution)
 
+            k += 1
+            if(k == frequencyOfIntensification){
+
+                k = 0
+                bestNeighbor = getIntensifiedSolution(bestNeighbor)
+
+            }
+
             if(evaluator.getSolutionCost(bestNeighbor) < evaluator.getSolutionCost(solution)) {
                 solution = bestNeighbor
             }
+
+            timeSpent = System.currentTimeMillis() - timeStart
+
+            if(evaluator.getSolutionCost(solution) < target){
+
+                break
+
+            }
+
+            if(timeSpent > timeLimit){
+                break
+            }
         }
+
+        println("${evaluator.getSolutionCost(solution)} ${timeSpent.toDouble()/1000.0}")
 
         return solution
     }
@@ -55,13 +83,15 @@ class TS(val instance: Instance, val timeLimit: Int, val numIteration: Int){
         var bestCost = evaluator.getExchangeCost(randomVOut, randomCOut, randomVIn, randomCIn)
         var bestIsExchange = bestCost > evaluator.getAdditionCost(randomVOut, randomVIn, randomCOut)
 
+        Collections.shuffle(source.vehicles);
+
         for(vehicleOut in source.vehicles){
             for(customerOut in vehicleOut.customers.subList(1, vehicleOut.customers.size)){
                 for(vehicleIn in source.vehicles){
                     for(customerIn in vehicleIn.customers.subList(1, vehicleIn.customers.size)){
                         var exchangeCost = evaluator.getExchangeCost(vehicleOut, customerOut, vehicleIn, customerIn)
 
-                        if(exchangeCost > bestCost){
+                        if(exchangeCost > bestCost && (!tabuList.contains(customerIn) && !tabuList.contains(customerOut))){
                             bestCost = exchangeCost
                             bestMovementExchange = TabuItem(vehicleOut, customerOut, vehicleIn, customerIn)
                             bestIsExchange = true
@@ -79,7 +109,7 @@ class TS(val instance: Instance, val timeLimit: Int, val numIteration: Int){
 
                     var addingCost = evaluator.getAdditionCost(vehicleOut, vehicleIn, customerOut)
 
-                    if(addingCost > bestCost){
+                    if(addingCost > bestCost && !tabuList.contains(customerOut)){
 
                         bestMovementAdding = TabuItem(vehicleOut, customerOut, vehicleIn, customerOut)
                         bestIsExchange = false
@@ -110,8 +140,8 @@ class TS(val instance: Instance, val timeLimit: Int, val numIteration: Int){
             val indexOfCustomerOut = newSolution.vehicles[indexOfVehicleOut].customers.indexOf(bestMovementExchange.customerOut)
             val indexOfCustomerIn = newSolution.vehicles[indexOfVehicleIn].customers.indexOf(bestMovementExchange.customerIn)
 
-            newSolution.vehicles[indexOfCustomerOut].customers[indexOfCustomerOut] = bestMovementExchange.customerIn
-            newSolution.vehicles[indexOfCustomerIn].customers[indexOfCustomerIn] = bestMovementExchange.customerOut
+            newSolution.vehicles[indexOfVehicleOut].customers[indexOfCustomerOut] = bestMovementExchange.customerIn
+            newSolution.vehicles[indexOfVehicleIn].customers[indexOfCustomerIn] = bestMovementExchange.customerOut
         }else{
             newSolution.vehicles[newSolution.vehicles.indexOf(bestMovementAdding.vehicleIn)].customers.add(bestMovementAdding.customerIn)
             newSolution.vehicles[newSolution.vehicles.indexOf(bestMovementAdding.vehicleOut)].customers.remove(bestMovementAdding.customerOut)
@@ -130,44 +160,44 @@ class TS(val instance: Instance, val timeLimit: Int, val numIteration: Int){
 
     }
 
-    fun getBaseSolution() : Solution{
-        var solution = Solution()
+        fun getBaseSolution() : Solution{
+            var solution = Solution()
 
-        for(customer in instance.customers.subList(1, instance.customers.size)){
+            for(customer in instance.customers.subList(1, instance.customers.size)){
 
-            var vehicle = Vehicle()
-            vehicle.capacity = instance.vehicleCapacity
-            vehicle.customers.add(instance.customers[0])
-            vehicle.customers.add(customer)
-            solution.vehicles.add(vehicle)
+                var vehicle = Vehicle()
+                vehicle.capacity = instance.vehicleCapacity
+                vehicle.customers.add(instance.customers[0])
+                vehicle.customers.add(customer)
+                solution.vehicles.add(vehicle)
 
-        }
+            }
 
         return solution
     }
 
-    fun getIntensifiedSolution() : Solution{
-        var solution = Solution()
+    fun getIntensifiedSolution(solution: Solution) : Solution{
+        var newNeighbor = getBestNeighbor(solution)
 
+        while(true){
+            var searching = getBestNeighbor(newNeighbor)
+            if(evaluator.getSolutionCost(searching) > evaluator.getSolutionCost(newNeighbor)){
+                newNeighbor = searching
+            }
+        }
 
-        return solution
+        return newNeighbor
     }
 
 }
 
 fun main(args: Array<String>) {
-    var filename = "/Users/alanfortlink/Desktop/atividade9/vrp_instances/instance2.vrp"
+    var filename = args[0]
 
     var instance = Instance()
     instance.readFromFile(filename)
 
-    var ts = TS(instance, 10000, 1000)
+    var ts = TS(instance, 5 * 60 * 1000, 100000, instance.size/args[1].toInt(), instance.size/args[2].toInt(), args[3].toInt())
 
     var solution = ts.solve()
-
-    var evaluator = Evaluator()
-    evaluator.calcDistances(instance.customers)
-
-
-    println(evaluator.getSolutionCost(solution))
 }
