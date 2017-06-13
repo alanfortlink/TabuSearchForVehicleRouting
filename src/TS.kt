@@ -24,19 +24,6 @@ class TS(val instance: Instance, val timeLimit: Int, val numIteration: Int, val 
         var k = 0
 
         for(i in 1..numIteration){
-//            println("Iteration ${i}")
-
-            var i = 0
-            while(i < solution.vehicles.size){
-
-                if(solution.vehicles[i].customers.size <= 1){
-                    solution.vehicles.removeAt(i--)
-                }
-
-                i++
-
-            }
-
             var bestNeighbor = getBestNeighbor(solution)
 
             k += 1
@@ -70,6 +57,16 @@ class TS(val instance: Instance, val timeLimit: Int, val numIteration: Int, val 
     }
 
     fun getBestNeighbor(source: Solution) : Solution{
+        var i = 0
+        while(i < source.vehicles.size){
+
+            if(source.vehicles[i].customers.size <= 1){
+                source.vehicles.removeAt(i--)
+            }
+
+            i++
+
+        }
 
         val randomVOut = source.vehicles[maxOf(nextInt() % source.vehicles.size, 1)]
         val randomVIn = source.vehicles[maxOf(1, nextInt() % source.vehicles.size)]
@@ -105,18 +102,18 @@ class TS(val instance: Instance, val timeLimit: Int, val numIteration: Int, val 
         for(vehicleIn in source.vehicles){
             for(vehicleOut in source.vehicles){
                 if(vehicleOut != vehicleIn)
-                for(customerOut in vehicleOut.customers.subList(1, vehicleOut.customers.size)){
+                    for(customerOut in vehicleOut.customers.subList(1, vehicleOut.customers.size)){
 
-                    var addingCost = evaluator.getAdditionCost(vehicleOut, vehicleIn, customerOut)
+                        var addingCost = evaluator.getAdditionCost(vehicleOut, vehicleIn, customerOut)
 
-                    if(addingCost > bestCost && !tabuList.contains(customerOut)){
+                        if(addingCost > bestCost && !tabuList.contains(customerOut)){
 
-                        bestMovementAdding = TabuItem(vehicleOut, customerOut, vehicleIn, customerOut)
-                        bestIsExchange = false
+                            bestMovementAdding = TabuItem(vehicleOut, customerOut, vehicleIn, customerOut)
+                            bestIsExchange = false
+
+                        }
 
                     }
-
-                }
             }
         }
 
@@ -160,18 +157,18 @@ class TS(val instance: Instance, val timeLimit: Int, val numIteration: Int, val 
 
     }
 
-        fun getBaseSolution() : Solution{
-            var solution = Solution()
+    fun getBaseSolution() : Solution{
+        var solution = Solution()
 
-            for(customer in instance.customers.subList(1, instance.customers.size)){
+        for(customer in instance.customers.subList(1, instance.customers.size)){
 
-                var vehicle = Vehicle()
-                vehicle.capacity = instance.vehicleCapacity
-                vehicle.customers.add(instance.customers[0])
-                vehicle.customers.add(customer)
-                solution.vehicles.add(vehicle)
+            var vehicle = Vehicle()
+            vehicle.capacity = instance.vehicleCapacity
+            vehicle.customers.add(instance.customers[0])
+            vehicle.customers.add(customer)
+            solution.vehicles.add(vehicle)
 
-            }
+        }
 
         return solution
     }
@@ -183,6 +180,8 @@ class TS(val instance: Instance, val timeLimit: Int, val numIteration: Int, val 
             var searching = getBestNeighbor(newNeighbor)
             if(evaluator.getSolutionCost(searching) > evaluator.getSolutionCost(newNeighbor)){
                 newNeighbor = searching
+            }else{
+                break
             }
         }
 
